@@ -3,6 +3,7 @@ services:
   # Gemma 4B Setup (unverändert aus deiner bestehenden Konfiguration)
   gemma3_4b_ollama:
     image: ollama/ollama:latest
+    restart: unless-stopped
     volumes:
       - gemma3_4b_data:/root/.ollama
     networks:
@@ -11,10 +12,11 @@ services:
 
   gemma3_4b_proxy:
     build: ..
+    restart: unless-stopped
     ports:
       - "30001:3000"
     environment:
-      - API_KEY=${API_KEY_4B}
+      - API_KEY=v2SBxsS5D2N0XqL981Hf4J785n99kHCLtevCD0h8Z3cuIbhJjyt08MCapF6617E6
       - OLLAMA_URL=http://gemma3_4b_ollama:11434
     depends_on:
       - gemma3_4b_ollama
@@ -22,7 +24,7 @@ services:
       - gemma3_4b_network
 
   # Cloudflared Tunnel
-  cloudflared:
+  gemma3_4b_cloudflared:
     image: cloudflare/cloudflared:latest
     restart: unless-stopped
     networks:
