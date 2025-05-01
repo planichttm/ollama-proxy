@@ -1,0 +1,6 @@
+tunnel: d23c92d9-905f-43c9-af58-34e9088cc09b
+credentials-file: /etc/cloudflared/d23c92d9-905f-43c9-af58-34e9088cc09b.json
+ingress:
+  - hostname: gemma3-4b.scribomate.ai
+    service: http://gemma3_4b_proxy:3000
+  - service: http_status:404
