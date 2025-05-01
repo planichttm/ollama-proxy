@@ -83,3 +83,6 @@ lerna-debug.log*
 
 #.lock
 *lock.json
+
+#Cloudflare
+/cloudflare/*

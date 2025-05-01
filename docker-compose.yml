@@ -1,0 +1,77 @@
+version: '3.9'
+services:
+  # Gemma 4B Setup
+  gemma3_4b_ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - gemma3_4b_data:/root/.ollama
+    networks:
+      - gemma3_4b_network
+    # Simple command approach
+    command: serve
+
+  gemma3_4b_proxy:
+    build: .
+    ports:
+      - "30001:3000"
+    environment:
+      - API_KEY=${API_KEY_4B}
+      - OLLAMA_URL=http://gemma3_4b_ollama:11434
+    depends_on:
+      - gemma3_4b_ollama
+    networks:
+      - gemma3_4b_network
+
+  # Gemma 12B Setup
+  gemma3_12b_ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - gemma3_12b_data:/root/.ollama
+    networks:
+      - gemma3_12b_network
+    # Simple command approach
+    command: serve
+
+  gemma3_12b_proxy:
+    build: .
+    ports:
+      - "30002:3000"
+    environment:
+      - API_KEY=${API_KEY_12B}
+      - OLLAMA_URL=http://gemma3_12b_ollama:11434
+    depends_on:
+      - gemma3_12b_ollama
+    networks:
+      - gemma3_12b_network
+
+  # Gemma 27B Setup
+  gemma3_27b_ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - gemma3_27b_data:/root/.ollama
+    networks:
+      - gemma3_27b_network
+    # Simple command approach
+    command: serve
+
+  gemma3_27b_proxy:
+    build: .
+    ports:
+      - "30003:3000"
+    environment:
+      - API_KEY=${API_KEY_27B}
+      - OLLAMA_URL=http://gemma3_27b_ollama:11434
+    depends_on:
+      - gemma3_27b_ollama
+    networks:
+      - gemma3_27b_network
+
+volumes:
+  gemma3_4b_data:
+  gemma3_12b_data:
+  gemma3_27b_data:
+
+networks:
+  gemma3_4b_network:
+  gemma3_12b_network:
+  gemma3_27b_network:
