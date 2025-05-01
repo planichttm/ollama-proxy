@@ -6,9 +6,24 @@ services:
     restart: unless-stopped
     volumes:
       - gemma3_4b_data:/root/.ollama
+      - ./ollama.json:/root/.ollama/ollama.json
     networks:
       - gemma3_4b_network
+    environment:
+      - OLLAMA_DEBUG=1
+      - OLLAMA_VERBOSE=1
+      - OLLAMA_HOST=0.0.0.0:11434
+    shm_size: 4gb  # Increase from default 64MB to 1GB
+    oom_kill_disable: true
     command: serve
+    deploy:
+      resources:
+        limits:
+          memory: 20G
+        reservations:
+          memory: 12G
+    ulimits:
+      memlock: -1  # Unlimited locked memory    
 
   gemma3_4b_proxy:
     build: ..
