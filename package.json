@@ -8,7 +8,13 @@
       "start": "node dist/index.js",
       "dev": "tsx src/index.ts",
       "lint": "eslint src/**/*.ts",
-      "test": "echo \"Error: no test specified\" && exit 1"
+      "test": "echo \"Error: no test specified\" && exit 1",
+      "start:gemma27b": "docker-compose -f scribomate-gemma3-27b/docker-compose-gemma3-27b.yml up -d",
+      "stop:gemma27b": "docker-compose -f scribomate-gemma3-27b/docker-compose-gemma3-27b.yml down",
+      "start:gemma12b": "docker-compose -f scribomate-gemma3-12b/docker-compose-gemma3-12b.yml up -d",
+      "stop:gemma12b": "docker-compose -f scribomate-gemma3-12b/docker-compose-gemma3-12b.yml down",
+      "start:gemma4b": "docker-compose -f scribomate-gemma3-4b/docker-compose-gemma3-4b.yml up -d",
+      "stop:gemma4b": "docker-compose -f scribomate-gemma3-4b/docker-compose-gemma3-4b.yml down"
     },
     "keywords": ["ollama", "proxy", "api", "docker"],
     "author": "",
