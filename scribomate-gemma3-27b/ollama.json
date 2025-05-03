@@ -1,0 +1,9 @@
+{
+    "gpu_layers": -1,
+    "num_ctx": 4096,
+    "num_batch": 64,
+    "num_thread": 8,
+    "num_keep": 8,
+    "mlock": false,
+    "num_predict": 4096
+  }

@@ -1,0 +1,61 @@
+version: '3.9'
+services:
+  # Gemma 27b Setup (unverändert aus deiner bestehenden Konfiguration)
+  gemma3_27b_ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    volumes:
+      - gemma3_27b_data:/root/.ollama
+      - ./ollama.json:/root/.ollama/ollama.json
+    networks:
+      - gemma3_27b_network
+    environment:
+      - OLLAMA_DEBUG=1
+      - OLLAMA_VERBOSE=1
+      - OLLAMA_HOST=0.0.0.0:11434
+    shm_size: 4gb  # Increase from default 64MB to 1GB
+    oom_kill_disable: true
+    command: serve
+    deploy:
+      resources:
+        limits:
+          memory: 20G
+        reservations:
+          memory: 12G
+          devices:
+            - driver: nvidia
+              count: 1  # Nur 1 GPU verwenden
+              capabilities: [gpu]
+    ulimits:
+      memlock: -1  # Unlimited locked memory    
+
+  gemma3_27b_proxy:
+    build: ..
+    restart: unless-stopped
+    ports:
+      - "30003:3000"
+    environment:
+      - API_KEY=sHSn1RBYHlP30ixehF8vDG6D0E8PkC2nLSMCsI48GHKAeMie4AJwlQw3hh3lU1h8
+      - OLLAMA_URL=http://gemma3_27b_ollama:11434
+    depends_on:
+      - gemma3_27b_ollama
+    networks:
+      - gemma3_27b_network
+
+  # Cloudflared Tunnel
+  gemma3_27b_cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    networks:
+      - gemma3_27b_network
+    volumes:
+      - ./cloudflared-config:/etc/cloudflared
+    command: tunnel --no-autoupdate run
+    depends_on:
+      - gemma3_27b_proxy
+
+volumes:
+  gemma3_27b_data:
+
+networks:
+  gemma3_27b_network:
