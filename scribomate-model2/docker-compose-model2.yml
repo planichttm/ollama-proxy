@@ -1,14 +1,14 @@
 version: '3.9'
 services:
-  # Gemma 4B Setup (unverändert aus deiner bestehenden Konfiguration)
-  gemma3_4b_ollama:
+  # model2 Setup (unverändert aus deiner bestehenden Konfiguration)
+  model2_ollama:
     image: ollama/ollama:latest
     restart: unless-stopped
     volumes:
-      - gemma3_4b_data:/root/.ollama
+      - model2_data:/root/.ollama
       - ./ollama.json:/root/.ollama/ollama.json
     networks:
-      - gemma3_4b_network
+      - model2_network
     environment:
       - OLLAMA_DEBUG=1
       - OLLAMA_VERBOSE=1
@@ -20,39 +20,43 @@ services:
     deploy:
       resources:
         limits:
-          memory: 10G
+          memory: 30G
         reservations:
-          memory: 4G
+          memory: 16G
+          devices:
+            - driver: nvidia
+              count: 1  # Nur 1 GPU verwenden
+              capabilities: [gpu]
     ulimits:
       memlock: -1  # Unlimited locked memory    
 
-  gemma3_4b_proxy:
+  model2_proxy:
     build: ..
     restart: unless-stopped
     ports:
-      - "30001:3000"
+      - "30002:3000"
     environment:
-      - API_KEY=v2SBxsS5D2N0XqL981Hf4J785n99kHCLtevCD0h8Z3cuIbhJjyt08MCapF6617E6
-      - OLLAMA_URL=http://gemma3_4b_ollama:11434
+      - API_KEY=r1jRtqQAs6KB3SOFN8Fxwr2tIolPc5X6X4nR43VbHrl6EA739lg456kwRk4s8974
+      - OLLAMA_URL=http://model2_ollama:11434
     depends_on:
-      - gemma3_4b_ollama
+      - model2_ollama
     networks:
-      - gemma3_4b_network
+      - model2_network
 
   # Cloudflared Tunnel
-  gemma3_4b_cloudflared:
+  model2_cloudflared:
     image: cloudflare/cloudflared:latest
     restart: unless-stopped
     networks:
-      - gemma3_4b_network
+      - model2_network
     volumes:
       - ./cloudflared-config:/etc/cloudflared
     command: tunnel --no-autoupdate run
     depends_on:
-      - gemma3_4b_proxy
+      - model2_proxy
 
 volumes:
-  gemma3_4b_data:
+  model2_data:
 
 networks:
-  gemma3_4b_network:
+  model2_network:
