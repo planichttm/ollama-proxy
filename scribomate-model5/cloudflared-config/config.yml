@@ -1,0 +1,6 @@
+tunnel: 93098d2c-1e36-4382-8564-8960d57db12e
+credentials-file: /etc/cloudflared/93098d2c-1e36-4382-8564-8960d57db12e.json
+ingress:
+  - hostname: model5.scribomate.ai
+    service: http://model5_proxy:3000
+  - service: http_status:404

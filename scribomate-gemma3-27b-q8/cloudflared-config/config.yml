@@ -1,6 +1,0 @@
-tunnel: 9e977946-78ec-4e2f-9fd6-5a0c45ed8d83
-credentials-file: /etc/cloudflared/9e977946-78ec-4e2f-9fd6-5a0c45ed8d83.json
-ingress:
-  - hostname: gemma3-27b-q8.scribomate.ai
-    service: http://gemma3_27b_q8_proxy:3000
-  - service: http_status:404

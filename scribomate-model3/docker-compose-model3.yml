@@ -1,14 +1,14 @@
 version: '3.9'
 services:
-  # gemma3 27b q5 Setup (unverändert aus deiner bestehenden Konfiguration)
-  gemma3_27b_q8_ollama:
+  # model3 Setup (unverändert aus deiner bestehenden Konfiguration)
+  model3_ollama:
     image: ollama/ollama:latest
     restart: unless-stopped
     volumes:
-      - gemma3_27b_q8_data:/root/.ollama
+      - model3_data:/root/.ollama
       - ./ollama.json:/root/.ollama/ollama.json
     networks:
-      - gemma3_27b_q8_network
+      - model3_network
     environment:
       - OLLAMA_DEBUG=1
       - OLLAMA_VERBOSE=1
@@ -30,33 +30,33 @@ services:
     ulimits:
       memlock: -1  # Unlimited locked memory    
 
-  gemma3_27b_q8_proxy:
+  model3_proxy:
     build: ..
     restart: unless-stopped
     ports:
-      - "30007:3000"
+      - "30003:3000"
     environment:
-      - API_KEY=0RJx6789Q6LH2G0ima4USS2Yc9FfV2G6ddV69ibuQ9YC8O0ixL0VM248QG4z00Cu
-      - OLLAMA_URL=http://gemma3_27b_q8_ollama:11434
+      - API_KEY=dr33bD1VnWOjZ1h5WxI19PCrwE4GAd3jN6l7vr57HOHfN7E9O03o0M6r22D9T85I
+      - OLLAMA_URL=http://model3_ollama:11434
     depends_on:
-      - gemma3_27b_q8_ollama
+      - model3_ollama
     networks:
-      - gemma3_27b_q8_network
+      - model3_network
 
   # Cloudflared Tunnel
-  gemma3_27b_q8_cloudflared:
+  model3_cloudflared:
     image: cloudflare/cloudflared:latest
     restart: unless-stopped
     networks:
-      - gemma3_27b_q8_network
+      - model3_network
     volumes:
       - ./cloudflared-config:/etc/cloudflared
     command: tunnel --no-autoupdate run
     depends_on:
-      - gemma3_27b_q8_proxy
+      - model3_proxy
 
 volumes:
-  gemma3_27b_q8_data:
+  model3_data:
 
 networks:
-  gemma3_27b_q8_network:
+  model3_network:

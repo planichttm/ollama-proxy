@@ -1,14 +1,14 @@
 version: '3.9'
 services:
-  # llama 70b Setup (unverändert aus deiner bestehenden Konfiguration)
-  llama3_70b_ollama:
+  # model5 Setup (unverändert aus deiner bestehenden Konfiguration)
+  model5_ollama:
     image: ollama/ollama:latest
     restart: unless-stopped
     volumes:
-      - llama3_70b_data:/root/.ollama
+      - model5_data:/root/.ollama
       - ./ollama.json:/root/.ollama/ollama.json
     networks:
-      - llama3_70b_network
+      - model5_network
     environment:
       - OLLAMA_DEBUG=1
       - OLLAMA_VERBOSE=1
@@ -30,33 +30,33 @@ services:
     ulimits:
       memlock: -1  # Unlimited locked memory    
 
-  llama3_70b_proxy:
+  model5_proxy:
     build: ..
     restart: unless-stopped
     ports:
-      - "30004:3000"
+      - "30005:3000"
     environment:
-      - API_KEY=1IFBNxd4stQ6T9sMLiJF5WyOHZTaP3j3F52NhU7DfW2B7v16IGUes4biJYJP1O1T
-      - OLLAMA_URL=http://llama3_70b_ollama:11434
+      - API_KEY=d71t205OXH3yC3vTo313ch2ocMG0Mb3JP2BNzb7MQmyW64FLzvbtN7S8O9I5X1C9
+      - OLLAMA_URL=http://model5_ollama:11434
     depends_on:
-      - llama3_70b_ollama
+      - model5_ollama
     networks:
-      - llama3_70b_network
+      - model5_network
 
   # Cloudflared Tunnel
-  llama3_70b_cloudflared:
+  model5_cloudflared:
     image: cloudflare/cloudflared:latest
     restart: unless-stopped
     networks:
-      - llama3_70b_network
+      - model5_network
     volumes:
       - ./cloudflared-config:/etc/cloudflared
     command: tunnel --no-autoupdate run
     depends_on:
-      - llama3_70b_proxy
+      - model5_proxy
 
 volumes:
-  llama3_70b_data:
+  model5_data:
 
 networks:
-  llama3_70b_network:
+  model5_network:
