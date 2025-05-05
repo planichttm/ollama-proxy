@@ -1,0 +1,6 @@
+tunnel: 6c1aee5f-de7f-4d61-8854-8aa5a275b351
+credentials-file: /etc/cloudflared/6c1aee5f-de7f-4d61-8854-8aa5a275b351.json
+ingress:
+  - hostname: llama3-70b.scribomate.ai
+    service: http://llama3_70b_proxy:3000
+  - service: http_status:404
