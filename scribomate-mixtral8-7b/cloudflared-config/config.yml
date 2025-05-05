@@ -1,0 +1,6 @@
+tunnel: 00221bc0-b12e-4bda-94d5-edeee5d81371
+credentials-file: /etc/cloudflared/00221bc0-b12e-4bda-94d5-edeee5d81371.json
+ingress:
+  - hostname: mixtral8-7b.scribomate.ai
+    service: http://mixtral8_7b_proxy:3000
+  - service: http_status:404
