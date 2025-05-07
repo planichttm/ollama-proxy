@@ -119,3 +119,13 @@ gemma3_27b_ollama:
 - Adjust `num_predict` if you need longer or shorter responses
 - For larger models (27B), use a lower `num_batch` value (32) to prevent out-of-memory errors
 - For smaller models (4B), a higher `num_batch` value (128) can improve processing speed
+
+
+
+
+
+"gpu_layers": 60 oder "gpu_layers": 50: Statt alle Schichten auf die GPU zu laden (-1), laden wir nur einen Teil. Bei der q3_K_S-Variante können wir mehr Schichten auf die GPU laden (60), bei der größeren q4_0-Variante etwas weniger (50). Die restlichen Schichten werden im RAM verarbeitet.
+"num_ctx": 8192: Eine Reduzierung des Kontextfensters von 32768 auf 8192 spart erheblich Speicher, sowohl VRAM als auch RAM. Du kannst diesen Wert erhöhen, wenn du längere Texte verarbeiten musst und genug Speicher hast.
+"num_batch": 512: Erhöht von 64 auf 512 für bessere Verarbeitungseffizienz bei Batch-Anfragen.
+"mmap": true: Aktiviert Memory-Mapped Files, was die Speicherverwaltung verbessert, besonders bei großen Modellen.
+"f16": true: Verwendet Halbe Präzision (float16) für die Berechnungen, was die Speichernutzung weiter reduziert und die Geschwindigkeit erhöht.
