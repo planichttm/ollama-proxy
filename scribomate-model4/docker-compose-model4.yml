@@ -2,11 +2,10 @@ version: '3.9'
 services:
   # model4 Setup (unverändert aus deiner bestehenden Konfiguration)
   model4_ollama:
-    image: ollama/ollama:latest
+    image: ollama/ollama:0.7.0-rc0
     restart: unless-stopped
     volumes:
-      - model4_data:/root/.ollama
-      - ./ollama.json:/root/.ollama/ollama.json
+      - model4_data:/root/.ollama      
     networks:
       - model4_network
     environment:
@@ -14,6 +13,10 @@ services:
       - OLLAMA_VERBOSE=1
       - OLLAMA_HOST=0.0.0.0:11434
       - OLLAMA_NUM_PARALLEL=1
+      - OLLAMA_NUM_CTX=8192
+      - OLLAMA_NUM_THREAD=8
+      - OLLAMA_MLOCK=false
+      - OLLAMA_KV_CACHE_TYPE=q4_0      # Quantisierter KV-Cache
     shm_size: 4gb  # Increase from default 64MB to 1GB
     oom_kill_disable: true
     command: serve
