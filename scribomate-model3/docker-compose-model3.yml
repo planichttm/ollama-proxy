@@ -2,7 +2,8 @@ version: '3.9'
 services:
   # model3 Setup (unverändert aus deiner bestehenden Konfiguration)
   model3_ollama:
-    image: ollama/ollama:latest
+    image: ollama/ollama:0.7.0-rc0
+    pull_policy: if_not_present
     restart: unless-stopped
     volumes:
       - model3_data:/root/.ollama
@@ -14,8 +15,10 @@ services:
       - OLLAMA_VERBOSE=1
       - OLLAMA_HOST=0.0.0.0:11434
       - OLLAMA_NUM_PARALLEL=1
-      - OLLAMA_FLASH_ATTENTION=1  # Wichtig für K/V Cache-Quantisierung
-      - OLLAMA_KV_CACHE_TYPE=q4_0  # Diese Zeile hinzufügen
+      - OLLAMA_NUM_CTX=16384
+      - OLLAMA_NUM_THREAD=8
+      - OLLAMA_MLOCK=false
+      - OLLAMA_NUM_BATCH=512  # Größer für bessere Performance
     shm_size: 4gb  # Increase from default 64MB to 1GB
     oom_kill_disable: true
     command: serve
