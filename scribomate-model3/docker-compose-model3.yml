@@ -2,7 +2,7 @@ version: '3.9'
 services:
   # model3 Setup (unverändert aus deiner bestehenden Konfiguration)
   model3_ollama:
-    image: ollama/ollama:0.7.0-rc0
+    image: ollama/ollama:0.11.4
     pull_policy: if_not_present
     restart: unless-stopped
     volumes:
