@@ -12,6 +12,7 @@ services:
       - model3_network
     environment:
       - OLLAMA_DEBUG=1
+      - OLLAMA_KEEP_ALIVE=0
       - OLLAMA_VERBOSE=1
       - OLLAMA_HOST=0.0.0.0:11434
       - OLLAMA_NUM_PARALLEL=1
