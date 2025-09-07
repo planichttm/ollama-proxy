@@ -1,10 +1,10 @@
 {
   "gpu_layers": -1,
   "num_ctx": 16384,
-  "num_batch": 128,
+  "num_batch": 512,
   "num_thread": 8,
   "num_keep": 8,
-  "mlock": true,
+  "mlock": false,
   "num_predict": 8192,
   "mmap": true,
   "f16": true

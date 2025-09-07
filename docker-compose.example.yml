@@ -1,15 +1,15 @@
 version: '3.9'
 services:
-  # model3 Setup (unverändert aus deiner bestehenden Konfiguration)
-  model3_ollama:
+  # Ollama Service
+  ollama:
     image: ollama/ollama:0.11.4
     pull_policy: if_not_present
     restart: unless-stopped
     volumes:
-      - model3_data:/root/.ollama
-      - ./ollama.json:/root/.ollama/ollama.json
+      - ollama_data:/root/.ollama
+      - ./ollama-setup/ollama.json:/root/.ollama/ollama.json
     networks:
-      - model3_network
+      - ollama_network
     environment:
       - OLLAMA_DEBUG=1
       - OLLAMA_KEEP_ALIVE=60m
@@ -19,8 +19,8 @@ services:
       - OLLAMA_NUM_CTX=16384
       - OLLAMA_NUM_THREAD=8
       - OLLAMA_MLOCK=false
-      - OLLAMA_NUM_BATCH=512  # Größer für bessere Performance
-    shm_size: 4gb  # Increase from default 64MB to 1GB
+      - OLLAMA_NUM_BATCH=512  # Higher value for better performance
+    shm_size: 4gb  # Increase from default 64MB to 4GB
     oom_kill_disable: true
     command: serve
     deploy:
@@ -31,38 +31,36 @@ services:
           memory: 16G
           devices:
             - driver: nvidia
-              count: 1  # Nur 1 GPU verwenden
+              count: 1  # Use only 1 GPU
               capabilities: [gpu]
     ulimits:
       memlock: -1  # Unlimited locked memory    
 
-  model3_proxy:
-    build: ..
+  proxy:
+    build: .
     restart: unless-stopped
-    ports:
-      - "30003:3000"
     environment:
-      - API_KEY=dr33bD1VnWOjZ1h5WxI19PCrwE4GAd3jN6l7vr57HOHfN7E9O03o0M6r22D9T85I
-      - OLLAMA_URL=http://model3_ollama:11434
+      - API_KEY=${API_KEY}  # Set this in your environment or .env file
+      - OLLAMA_URL=http://ollama:11434
     depends_on:
-      - model3_ollama
+      - ollama
     networks:
-      - model3_network
+      - ollama_network
 
-  # Cloudflared Tunnel
-  model3_cloudflared:
+  # Cloudflared Tunnel (optional)
+  cloudflared:
     image: cloudflare/cloudflared:latest
     restart: unless-stopped
     networks:
-      - model3_network
+      - ollama_network
     volumes:
-      - ./cloudflared-config:/etc/cloudflared
+      - ./ollama-setup/cloudflared-config:/etc/cloudflared
     command: tunnel --no-autoupdate run
     depends_on:
-      - model3_proxy
+      - proxy
 
 volumes:
-  model3_data:
+  ollama_data:
 
 networks:
-  model3_network:
+  ollama_network:
