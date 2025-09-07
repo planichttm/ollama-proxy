@@ -1,141 +1,178 @@
-# Ollama Multi-Proxy Setup
+# Ollama API Proxy Documentation
 
-This repository contains a Docker setup for running Ollama models with proxies. You can run Gemma 4B, 12B, and 27B models separately or together.
+## Overview
 
-## Quick Start Guide for Gemma 4B Only
+This proxy provides OpenAI-compatible endpoints for Ollama models. **All models are accessible through a single endpoint** - you specify which model to use in your request body.
 
-If you're new to Docker and want to start with just the 4B model setup, follow these steps:
+## Key Concept: Single Endpoint, Multiple Models
+
+**Important:** Unlike some setups, this proxy uses ONE endpoint for ALL models. You don't need different ports for different models.
+
+✅ **Correct:** One endpoint, model specified in request:
+```bash
+curl -X POST http://localhost:3000/v1/chat/completions \
+  -H "Authorization: Bearer your-api-key" \
+  -d '{"model": "llama3", "messages": [...]}'
+```
+
+❌ **Wrong:** Different ports for different models (this proxy doesn't work this way)
+
+## Installation & Setup
 
 ### Prerequisites
-- Docker and Docker Compose installed
-- Git repository with your proxy code
+- Docker and Docker Compose
+- NVIDIA Docker runtime (for GPU support)
 
-### Step-by-Step Instructions
+### Quick Start
 
-1. **Create an environment file**
+1. **Set up environment:**
    ```bash
    cp .env.example .env
+   # Edit .env and set your API_KEY
    ```
 
-2. **Edit the .env file to set your API key**
+2. **Start the proxy:**
    ```bash
-   # Open with your preferred editor
-   nano .env
+   npm run start:ollama
+   ```
+
+3. **Download models:**
+   ```bash
+   # Access Ollama container
+   docker exec -it ollama-proxy-ollama-1 /bin/bash
    
-   # Add or edit this line
-   API_KEY_4B=YOUR_DESIRED_API_KEY
+   # Download any models you want
+   ollama pull llama3
+   ollama pull codellama
+   ollama pull mistral
    ```
 
-3. **Start the 4B container**
-   ```bash
-   docker-compose -f docker-compose-only-4b.yml up -d
-   ```
+## API Usage
 
-4. **Verify the containers are running**
-   ```bash
-   docker ps
-   ```
-   You should see two containers: one for Ollama and one for the proxy.
-
-5. **Test the proxy**
-   ```bash
-   curl -X GET http://localhost:30001/health -H "Authorization: Bearer YOUR_API_KEY_4B"
-   ```
-   If everything works, you should receive a response like `{"status":"ok"}`.
-
-6. **Pull the Gemma 4B model**
-   ```bash
-   curl -X POST http://localhost:30001/api/pull \
-     -H "Content-Type: application/json" \
-     -H "Authorization: Bearer YOUR_API_KEY_4B" \
-     -d '{"name": "gemma3:4b"}'
-   ```
-
-7. **Send a chat request**
-   ```bash
-   curl -X POST http://localhost:30001/api/chat \
-     -H "Content-Type: application/json" \
-     -H "Authorization: Bearer YOUR_API_KEY_4B" \
-     -d '{
-       "model": "gemma3:4b",
-       "messages": [
-         {"role": "user", "content": "What is AI?"}
-       ]
-     }'
-   ```
-
-## Full Setup for All Models
-
-To run all models (4B, 12B, and 27B), use the main docker-compose file:
-
+### List Available Models
 ```bash
-# Create and edit .env file with all API keys
-cp .env.example .env
-nano .env
-
-# Add these lines
-API_KEY_4B=YOUR_4B_API_KEY
-API_KEY_12B=YOUR_12B_API_KEY
-API_KEY_27B=YOUR_27B_API_KEY
-
-# Start all containers
-docker-compose up -d
+curl -X GET http://localhost:3000/v1/models \
+  -H "Authorization: Bearer your-api-key"
 ```
 
-## Useful Commands
-
-- **View logs**
-  ```bash
-  # For 4B setup only
-  docker-compose -f docker-compose-only-4b.yml logs -f
-  
-  # For specific containers in full setup
-  docker-compose logs -f gemma3_4b_proxy
-  docker-compose logs -f gemma3_4b_ollama
-  ```
-
-- **Stop containers**
-  ```bash
-  # For 4B setup only
-  docker-compose -f docker-compose-only-4b.yml down
-  
-  # For full setup
-  docker-compose down
-  ```
-
-- **Rebuild after changes**
-  ```bash
-  # For 4B setup only
-  docker-compose -f docker-compose-only-4b.yml up -d --build
-  
-  # For full setup
-  docker-compose up -d --build
-  ```
-
-## Port Mappings
-
-- Gemma 4B: `http://localhost:30001`
-- Gemma 12B: `http://localhost:30002`
-- Gemma 27B: `http://localhost:30003`
-
-## API Endpoints
-
-- Health check: `GET /health`
-- Pull model: `POST /api/pull`
-- Chat: `POST /api/chat`
-- All other Ollama API endpoints are available through the proxy
-
-## File Structure
-
+### Chat with Any Model
+```bash
+curl -X POST http://localhost:3000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-api-key" \
+  -d '{
+    "model": "llama3",
+    "messages": [
+      {"role": "user", "content": "Hello, how are you?"}
+    ]
+  }'
 ```
-ollama-proxy/
-├── src/
-│   └── index.ts
-├── Dockerfile
-├── docker-compose.yml
-├── docker-compose-only-4b.yml
-├── package.json
-├── tsconfig.json
-├── .env
-└── .env.example
+
+### Switch Models in Same Request
+```bash
+# Use a different model by changing the "model" parameter
+curl -X POST http://localhost:3000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-api-key" \
+  -d '{
+    "model": "codellama",
+    "messages": [
+      {"role": "user", "content": "Write a Python function"}
+    ]
+  }'
 ```
+
+## Available Models
+
+The proxy supports any model that Ollama supports. Common models include:
+
+- **llama3** - General purpose conversational AI
+- **codellama** - Code generation and programming assistance  
+- **mistral** - Fast and efficient general purpose model
+- **gemma** - Google's lightweight model family
+- **phi** - Microsoft's small but capable models
+
+To see which models are currently downloaded:
+```bash
+curl -X GET http://localhost:3000/v1/models \
+  -H "Authorization: Bearer your-api-key"
+```
+
+## Configuration
+
+### Ollama Settings
+Model behavior can be configured via `ollama/ollama.json`:
+
+```json
+{
+  "gpu_layers": -1,
+  "num_ctx": 16384,
+  "num_batch": 512,
+  "num_thread": 8
+}
+```
+
+### Cloudflare Tunnel (Optional)
+For external access, configure `cloudflare/config.yml`:
+
+```yaml
+tunnel: your-tunnel-id
+credentials-file: /etc/cloudflared/your-tunnel.json
+ingress:
+  - hostname: your-domain.com
+    service: http://proxy:3000
+  - service: http_status:404
+```
+
+## Troubleshooting
+
+### Model Not Found
+If you get a "model not found" error:
+1. Check available models: `docker exec -it ollama-proxy-ollama-1 ollama list`
+2. Download the model: `docker exec -it ollama-proxy-ollama-1 ollama pull model-name`
+
+### Performance Issues
+- Increase GPU memory in docker-compose.yml
+- Adjust `num_batch` in ollama.json for your hardware
+- Monitor with: `docker stats ollama-proxy-ollama-1`
+
+## Integration Examples
+
+### Python with OpenAI Library
+```python
+from openai import OpenAI
+
+client = OpenAI(
+    base_url="http://localhost:3000/v1",
+    api_key="your-api-key"
+)
+
+response = client.chat.completions.create(
+    model="llama3",
+    messages=[{"role": "user", "content": "Hello!"}]
+)
+```
+
+### JavaScript/Node.js
+```javascript
+const response = await fetch('http://localhost:3000/v1/chat/completions', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer your-api-key'
+  },
+  body: JSON.stringify({
+    model: 'llama3',
+    messages: [{ role: 'user', content: 'Hello!' }]
+  })
+});
+```
+
+## Health Check
+
+Monitor proxy health:
+```bash
+curl -X GET http://localhost:3000/health
+```
+
+Returns: `{"status":"ok"}` if healthy.

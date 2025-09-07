@@ -84,5 +84,8 @@ lerna-debug.log*
 #.lock
 *lock.json
 
-#Cloudflare
-/cloudflare/*/*.json
+# Cloudflare Tunnel sensitive files  
+/cloudflare/config.yml
+/cloudflare/*.json
+
+# Keep example files, ignore actual config files

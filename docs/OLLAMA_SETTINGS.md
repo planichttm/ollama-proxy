@@ -1,131 +1,204 @@
-# Scribomate Gemma3 4B/12B/27B
+# Ollama Configuration Guide
 
-## Ollama Model Configuration
+## Overview
 
-The following parameters influence the behavior and performance of the Gemma3 model in Ollama:
+This guide covers the configuration parameters for Ollama models and how they affect performance and behavior in the Docker setup.
 
-### Basic Parameters
+## Configuration Parameters
 
-| Parameter | Value | Description |
-|-----------|------|--------------|
-| `gpu_layers` | -1 | Determines how many layers of the model run on the GPU. The value `-1` means all layers run on the GPU. A value of `0` would mean the model runs entirely on CPU. |
-| `num_ctx` | 4096 | Sets the context length or "window size" that the model can consider. This value represents the maximum number of tokens the model can process simultaneously, including both the prompt and the generated response. Higher values allow for longer conversations but require more memory. |
-| `num_batch` | 64 | Controls how many prompt tokens are processed in a single batch. Lower values use less memory but might be slower, while higher values can improve performance at the cost of more memory usage. |
-| `num_thread` | 8 | Determines how many CPU threads the model will use for computation. More threads can improve performance on multi-core systems, but setting this too high can cause system instability. The value should generally match the number of physical CPU cores available. |
-| `num_keep` | 8 | Specifies how many tokens from the beginning of the conversation to preserve when the context window fills up. This is important for maintaining continuity in longer conversations. |
-| `num_predict` | 4096 | Defines the maximum number of tokens the model will generate. This is a limit only for the output in tokens and has no influence on the input. Serves as a "safety net" to prevent endless generations. |
-| `mlock` | false | When set to `true`, this prevents the model from being swapped to disk, keeping it in RAM. This improves performance but requires enough physical memory to hold the entire model. |
+The following parameters control model behavior and performance:
 
-### Configuration Methods and Precedence
+### Core Parameters
 
-Ollama supports three different methods to configure the above parameters, with a clear precedence order:
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `gpu_layers` | -1 | Number of layers to run on GPU. `-1` uses all layers on GPU, `0` uses CPU only |
+| `num_ctx` | 16384 | Context window size (max tokens for input + output) |
+| `num_batch` | 512 | Tokens processed per batch. Higher values improve performance but use more memory |
+| `num_thread` | 8 | CPU threads for computation. Should match physical CPU cores |
+| `num_keep` | 8 | Tokens to preserve from conversation start when context fills |
+| `num_predict` | 8192 | Maximum tokens to generate in response |
+| `mlock` | false | Keep model in RAM (prevents swapping to disk) |
+| `mmap` | true | Memory-map model files for efficient loading |
+| `f16` | true | Use 16-bit floating point for better GPU performance |
 
-1. **API Parameters (Highest Priority)**: Parameters passed directly in API calls like `/api/generate` or `/api/chat` have the highest precedence and will override all other settings.
+## Configuration Methods & Precedence
 
-2. **Environment Variables (Middle Priority)**: Environment variables set in the Docker container (in docker-compose.yml) with the `OLLAMA_` prefix take precedence over the configuration file. For example:
-   - `OLLAMA_NUM_CTX`
-   - `OLLAMA_NUM_BATCH`
-   - `OLLAMA_NUM_THREAD`
+Ollama supports multiple configuration methods with clear precedence:
 
-3. **ollama.json (Lowest Priority)**: The configuration file mounted to `/root/.ollama/ollama.json` contains default values and will only be used if no corresponding environment variables or API parameters are set. Parameters here do not use the `OLLAMA_` prefix:
-   - `num_ctx`
-   - `num_batch`
-   - `num_thread`
+### 1. API Parameters (Highest Priority)
+Parameters passed directly in API requests override all other settings:
 
-### Model Size-Specific Recommendations
-
-For optimal performance with different model sizes, consider these recommended configurations:
-
-| Parameter | 4B Model | 12B Model | 27B Model |
-|-----------|---------|----------|----------|
-| `num_batch` | 128 | 64 | 32 |
-| `num_thread` | 8 | 8 | 8 |
-| `gpu_layers` | 0 (CPU) or -1 (GPU) | -1 (GPU) | -1 (GPU) |
-| `OLLAMA_NUM_PARALLEL` | 4 | 2 | 1 |
-
-#### Handling Multiple Instances and Parallel Requests
-
-- **OLLAMA_NUM_PARALLEL**: Controls how many concurrent requests a model can process:
-  - Setting this to 1 will queue additional requests when the model is busy
-  - Higher values allow multiple simultaneous inference processes but increase memory usage
-  - Memory usage doesn't double with each parallel request as model weights are shared, but KV cache and computation buffers are not
-
-- **OLLAMA_MAX_QUEUE** (default: 512): Determines how many requests can be queued when all parallel slots are busy. Requests beyond this limit receive a 503 error.
-
-### Detailed Explanation of Context Window (num_ctx) and Prediction Limit (num_predict)
-
-#### Tokens vs. Characters
-
-LLMs like Gemma3 work with tokens, not characters:
-- A **token** corresponds to approximately 4-5 characters or about 0.75 words in English
-- Tokenization varies depending on the model
-
-#### Relationship between num_ctx and num_predict
-
-The parameters are related as follows:
-
-1. **Input + Output ≤ num_ctx**: The sum of input tokens and output tokens must not exceed `num_ctx`
-2. **Output ≤ num_predict**: The number of output tokens is limited by `num_predict`
-3. **num_predict ≤ num_ctx**: The maximum response length cannot be greater than the context window
-
-#### Example Calculation
-
-Suppose a prompt has the following sizes:
-- System prompt: ~200 tokens
-- Formatted user message: ~800 tokens
-- Total: ~1000 tokens input
-
-With the current settings:
-- `num_ctx = 4096`: Total context of 4096 tokens
-- `num_predict = 4096`: Maximum 4096 tokens output
-
-In this case, theoretically up to 3096 tokens (4096 - 1000) could be generated as a response, limited by the `num_predict` limit of 4096 tokens.
-
-### Multi-Instance CPU Thread Allocation
-
-When running multiple Ollama instances on the same CPU:
-
-- Threads are shared by default and instances will compete for CPU resources
-- For optimal performance, you should explicitly allocate CPU threads to each instance
-- For a CPU like the Ryzen 9 9950X with 32 threads, you could allocate:
-  - 4B model: Threads 0-7 (8 threads)
-  - 12B model: Threads 8-19 (12 threads)
-  - 27B model: Threads 20-31 (12 threads)
-
-This can be implemented in docker-compose.yml using the `cpuset` parameter:
-
-```yaml
-# For 4B model
-gemma3_4b_ollama:
-  # Other settings...
-  cpuset: "0-7"
-
-# For 12B model
-gemma3_12b_ollama:
-  # Other settings...
-  cpuset: "8-19"
-
-# For 27B model
-gemma3_27b_ollama:
-  # Other settings...
-  cpuset: "20-31"
+```bash
+curl -X POST http://localhost:3000/v1/chat/completions \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer your_api_key" \\
+  -d '{
+    "model": "llama3",
+    "messages": [...],
+    "options": {
+      "num_ctx": 4096,
+      "temperature": 0.7
+    }
+  }'
 ```
 
-### Optimization Recommendations
+### 2. Environment Variables (Medium Priority)
+Set in `docker-compose.yml` with `OLLAMA_` prefix:
 
-- Increase `num_ctx` for longer conversations or complex tasks (e.g., to 6144 or 8192), if your hardware supports it
-- If experiencing memory issues, reduce `num_batch` and `num_ctx`
-- Ensure `num_thread` matches your CPU configuration
-- Adjust `num_predict` if you need longer or shorter responses
-- For larger models (27B), use a lower `num_batch` value (32) to prevent out-of-memory errors
-- For smaller models (4B), a higher `num_batch` value (128) can improve processing speed
+```yaml
+environment:
+  - OLLAMA_NUM_CTX=16384
+  - OLLAMA_NUM_BATCH=512
+  - OLLAMA_NUM_THREAD=8
+  - OLLAMA_KEEP_ALIVE=60m
+```
 
+### 3. ollama.json Configuration (Lowest Priority)
+Default settings in `/root/.ollama/ollama.json`:
 
+```json
+{
+  "gpu_layers": -1,
+  "num_ctx": 16384,
+  "num_batch": 512,
+  "num_thread": 8,
+  "num_keep": 8,
+  "mlock": false,
+  "num_predict": 8192,
+  "mmap": true,
+  "f16": true
+}
+```
 
+## Performance Optimization
 
+### GPU Configuration
+For optimal GPU performance:
 
-"gpu_layers": 60 oder "gpu_layers": 50: Statt alle Schichten auf die GPU zu laden (-1), laden wir nur einen Teil. Bei der q3_K_S-Variante können wir mehr Schichten auf die GPU laden (60), bei der größeren q4_0-Variante etwas weniger (50). Die restlichen Schichten werden im RAM verarbeitet.
-"num_ctx": 8192: Eine Reduzierung des Kontextfensters von 32768 auf 8192 spart erheblich Speicher, sowohl VRAM als auch RAM. Du kannst diesen Wert erhöhen, wenn du längere Texte verarbeiten musst und genug Speicher hast.
-"num_batch": 512: Erhöht von 64 auf 512 für bessere Verarbeitungseffizienz bei Batch-Anfragen.
-"mmap": true: Aktiviert Memory-Mapped Files, was die Speicherverwaltung verbessert, besonders bei großen Modellen.
-"f16": true: Verwendet Halbe Präzision (float16) für die Berechnungen, was die Speichernutzung weiter reduziert und die Geschwindigkeit erhöht.
+```yaml
+# In docker-compose.yml
+deploy:
+  resources:
+    limits:
+      memory: 36G
+    reservations:
+      memory: 16G
+      devices:
+        - driver: nvidia
+          count: 1
+          capabilities: [gpu]
+```
+
+### Memory Management
+- **Shared Memory**: Set to 4GB for large models
+- **Memory Lock**: Unlimited for optimal performance
+- **OOM Killer**: Disabled to prevent container kills
+
+```yaml
+shm_size: 4gb
+oom_kill_disable: true
+ulimits:
+  memlock: -1
+```
+
+### Model-Specific Recommendations
+
+| Model Size | num_batch | num_parallel | Memory Limit | Notes |
+|------------|-----------|--------------|--------------|-------|
+| 7B-13B | 512 | 2 | 16G | Good balance of speed/memory |
+| 13B-30B | 256 | 1 | 24G | Large models need more memory |
+| 30B+ | 128 | 1 | 36G+ | Maximum memory allocation |
+
+## Environment Variables Reference
+
+### Core Ollama Settings
+```bash
+OLLAMA_DEBUG=1              # Enable debug logging
+OLLAMA_VERBOSE=1            # Verbose output
+OLLAMA_HOST=0.0.0.0:11434  # Bind address and port
+OLLAMA_KEEP_ALIVE=60m      # Keep model in memory duration
+OLLAMA_NUM_PARALLEL=1      # Concurrent requests
+```
+
+### Performance Tuning
+```bash
+OLLAMA_NUM_CTX=16384       # Context window size
+OLLAMA_NUM_BATCH=512       # Batch size
+OLLAMA_NUM_THREAD=8        # CPU threads
+OLLAMA_MLOCK=false         # Memory locking
+```
+
+### GPU Settings
+```bash
+OLLAMA_GPU_LAYERS=-1       # All layers on GPU
+OLLAMA_MAX_LOADED_MODELS=1 # Models to keep loaded
+```
+
+## Troubleshooting Performance Issues
+
+### Memory Issues
+- **Out of Memory**: Reduce `num_batch`, `num_ctx`, or use CPU-only
+- **Slow Loading**: Enable `mlock=true` if you have enough RAM
+- **Swapping**: Increase Docker memory limits
+
+### GPU Issues
+- **No GPU Acceleration**: Check `nvidia-docker2` installation
+- **Partial GPU**: Reduce `gpu_layers` or model size
+- **Memory Errors**: Reduce batch size or context window
+
+### Performance Tuning
+```bash
+# Monitor GPU usage
+docker exec ollama-proxy-ollama-1 nvidia-smi
+
+# Check memory usage
+docker stats ollama-proxy-ollama-1
+
+# View Ollama logs
+docker logs ollama-proxy-ollama-1 -f
+```
+
+## Advanced Configuration
+
+### Custom Model Parameters
+Create model-specific configurations:
+
+```bash
+# Inside Ollama container
+ollama create custom-llama3 --file Modelfile
+```
+
+Example Modelfile:
+```dockerfile
+FROM llama3
+PARAMETER num_ctx 32768
+PARAMETER temperature 0.8
+PARAMETER top_p 0.9
+```
+
+### Multiple Model Support
+Configure different settings for different models using the API:
+
+```javascript
+const models = {
+  'llama3': { num_ctx: 16384, temperature: 0.7 },
+  'codellama': { num_ctx: 32768, temperature: 0.1 }
+};
+```
+
+## Monitoring and Metrics
+
+### Health Checks
+The proxy provides health endpoints:
+- `/health` - Basic health status
+- `/v1/models` - Available models
+
+### Performance Monitoring
+Monitor these metrics:
+- Response time
+- Token throughput
+- Memory usage
+- GPU utilization
+
+For production deployments, consider integrating with monitoring tools like Prometheus or Grafana.

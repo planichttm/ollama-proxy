@@ -1,82 +1,87 @@
 # Ollama API Proxy
 
-A simple proxy server for Ollama API requests with authentication.
+A simple proxy server for Ollama API requests with authentication, designed to provide OpenAI-compatible endpoints for Ollama models.
 
 ## Features
 
-- Authentication via API key
-- Forwarding requests to the Ollama server
-- Configuration via environment variables
-- Docker and Docker Compose support
-- Health check endpoint
+- **OpenAI API Compatibility**: Accept requests in OpenAI format and forward them to Ollama
+- **Authentication**: API key-based authentication for secure access
+- **Docker Support**: Complete containerized setup with Docker Compose
+- **Cloudflare Tunnel Integration**: Built-in support for secure external access
+- **Health Check Endpoint**: Monitor proxy status
+- **GPU Acceleration**: NVIDIA GPU support for Ollama container
+- **Flexible Configuration**: Environment-based configuration
 
-## Local Development
+## Quick Start
 
 ### Prerequisites
 
-- Node.js (v18 or higher)
-- npm or yarn
-- Ollama installed and running (on port 11434)
+- Docker and Docker Compose
+- NVIDIA Docker runtime (for GPU support)
+- Node.js 18+ (for local development)
 
-### Installation
+### Docker Deployment (Recommended)
 
-1. Clone repository
-2. Install dependencies:
+1. **Clone the repository:**
+   ```bash
+   git clone <your-repo-url>
+   cd ollama-proxy
+   ```
+
+2. **Set up environment:**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your API key
+   ```
+
+3. **Configure API key:**
+   ```bash
+   export API_KEY=your_secret_api_key_here
+   ```
+
+4. **Start the services:**
+   ```bash
+   npm run start:ollama
+   # or directly: docker-compose up -d
+   ```
+
+5. **Download models** (in Ollama container):
+   ```bash
+   docker exec -it ollama-proxy-ollama-1 /bin/bash
+   ollama pull llama3
+   ollama pull codellama
+   ```
+
+### Local Development
+
+1. **Install dependencies:**
    ```bash
    npm install
    ```
-3. Create `.env` file based on `.env.example`:
+
+2. **Set up environment:**
    ```bash
    cp .env.example .env
-   ```
-4. Adjust API key and other environment variables in the `.env` file
-
-### Starting the Proxy Server
-
-For development:
-```bash
-npm run dev
-```
-
-For production:
-```bash
-npm run build
-npm start
-```
-
-## Docker Deployment
-
-### Single Container
-
-1. Configure `.env` file
-2. Build Docker image:
-   ```bash
-   docker build -t ollama-proxy:latest .
-   ```
-3. Start container:
-   ```bash
-   docker run -p 3000:3000 --env-file .env ollama-proxy:latest
+   # Edit .env with your configuration
    ```
 
-### With Docker Compose
+3. **Start Ollama locally** (port 11434)
 
-1. Set API key:
+4. **Start the proxy:**
    ```bash
-   export API_KEY=your_api_key_here
-   ```
-2. Start Docker Compose:
-   ```bash
-   docker-compose up -d
+   npm run dev          # Development mode
+   # or
+   npm run build && npm start  # Production mode
    ```
 
 ## Usage
 
-The proxy accepts requests in an OpenAI-like format and forwards them to the Ollama server:
+The proxy accepts OpenAI-compatible requests. **All models use the same endpoint** - specify which model to use via the `model` parameter:
 
 ```bash
-curl -X POST http://localhost:3000/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer your_api_key_here" \
+curl -X POST http://localhost:3000/v1/chat/completions \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer your_api_key_here" \\
   -d '{
     "model": "llama3",
     "messages": [
@@ -85,23 +90,125 @@ curl -X POST http://localhost:3000/v1/chat/completions \
   }'
 ```
 
+### Available Endpoints
+
+- `POST /v1/chat/completions` - Chat completions (OpenAI compatible)
+- `GET /v1/models` - List available models
+- `GET /health` - Health check
+
 ## Cloudflare Tunnel Setup
 
-To make the proxy accessible via Cloudflare Tunnel:
+For secure external access:
 
-1. Install Cloudflare Tunnel on the workstation
-2. Create a new tunnel
-3. Configure tunnel with the proxy endpoint (e.g., `localhost:3000`)
-4. Set up DNS entry to point to the tunnel
+1. **Set up Cloudflare Tunnel:**
+   ```bash
+   # Install cloudflared and create a tunnel
+   cloudflared tunnel create ollama-proxy
+   ```
 
-## Multiple Docker Containers
+2. **Configure tunnel:**
+   ```bash
+   cp cloudflare/config.example.yml cloudflare/config.yml
+   # Edit config.yml with your tunnel ID and domain
+   ```
 
-For multiple instances:
+3. **Add tunnel credentials:**
+   Place your tunnel credentials JSON file in `cloudflare/`
 
-1. Create separate Docker Compose configurations for each instance
-2. Use different ports and API keys for each instance
-3. Adjust Cloudflare Tunnel rules to point to the different ports
+4. **The tunnel will automatically start with Docker Compose**
 
-## Health Check
+## Configuration
 
-The proxy provides a health check endpoint at `/health`
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `API_KEY` | Required | Authentication key for API access |
+| `OLLAMA_URL` | `http://localhost:11434` | Ollama server URL |
+| `PORT` | `3000` | Proxy server port |
+
+### Docker Configuration
+
+The Docker setup includes:
+- **Ollama container**: Runs Ollama with GPU support
+- **Proxy container**: Runs the API proxy
+- **Cloudflared container**: Provides tunnel access (optional)
+
+### GPU Configuration
+
+The setup supports NVIDIA GPUs with:
+- 36GB memory limit
+- 16GB memory reservation
+- Single GPU allocation
+- Unlimited locked memory
+
+## NPM Scripts
+
+| Script | Description |
+|--------|-------------|
+| `npm run start:ollama` | Start Docker Compose setup |
+| `npm run stop:ollama` | Stop Docker Compose setup |
+| `npm run logs:ollama` | View Docker Compose logs |
+| `npm run restart:ollama` | Restart Docker Compose setup |
+| `npm run dev` | Start development server |
+| `npm run build` | Build for production |
+| `npm start` | Start production server |
+
+## Project Structure
+
+```
+ollama-proxy/
+├── src/                          # Source code
+├── ollama/                       # Ollama configuration
+│   └── ollama.json              # Model settings
+├── cloudflare/                   # Cloudflare tunnel config
+│   ├── config.yml               # Tunnel config (ignored)
+│   ├── config.example.yml       # Tunnel template
+│   └── *.json                   # Credentials (ignored)
+├── docker-compose.yml           # Main Docker setup
+├── docker-compose.example.yml   # Example configuration
+├── .env.example                 # Environment template
+└── docs/                        # Documentation
+```
+
+## Security Notes
+
+- Keep your API key secure and never commit it to version control
+- Cloudflare tunnel credentials are sensitive and excluded from git
+- The proxy only accepts requests with valid API keys
+- Internal communication uses Docker networks for security
+
+## Troubleshooting
+
+### Port Conflicts
+If you encounter port conflicts, the setup uses internal Docker networking without host port mapping for security.
+
+### GPU Access
+Ensure NVIDIA Docker runtime is installed:
+```bash
+# Install nvidia-docker2
+sudo apt-get install nvidia-docker2
+sudo systemctl restart docker
+```
+
+### Model Downloads
+Access the Ollama container to manage models:
+```bash
+docker exec -it ollama-proxy-ollama-1 /bin/bash
+ollama list                    # List installed models
+ollama pull <model-name>       # Download models
+```
+
+## License
+
+MIT License - see LICENSE file for details.
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+For questions or support, please open an issue on GitHub.
