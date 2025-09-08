@@ -27,7 +27,7 @@ const apiKey = process.env.API_KEY;
 const ollamaUrl = process.env.OLLAMA_URL || 'http://localhost:11434';
 
 // Middleware for JSON parsing
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
 // Authentication middleware
 const authenticate = (req: Request, res: Response, next: NextFunction) => {
