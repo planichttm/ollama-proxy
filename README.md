@@ -1,8 +1,30 @@
 # Ollama API Proxy
 
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white)](#docker-deployment-recommended)
+[![OpenAI](https://img.shields.io/badge/OpenAI-Compatible-10A37F?style=for-the-badge&logo=openai&logoColor=white)](#openai-compatible-api)
+[![Ollama](https://img.shields.io/badge/Ollama-Native-FF6B35?style=for-the-badge&logo=ollama&logoColor=white)](#native-ollama-api)
+[![GPU](https://img.shields.io/badge/GPU-NVIDIA%20Ready-76B900?style=for-the-badge&logo=nvidia&logoColor=white)](#gpu-configuration)
+[![Health](https://img.shields.io/badge/Health-Check-4CAF50?style=for-the-badge&logo=heart&logoColor=white)](#general-endpoints)
+
 A simple proxy server for Ollama API requests with authentication, designed to provide OpenAI-compatible endpoints for Ollama models.
 
-## Features
+<details>
+<summary>📋 Table of Contents</summary>
+
+- [✨ Features](#features)
+- [🚀 Quick Start](#quick-start)
+- [🔌 API Usage](#api-usage)
+- [☁️ Cloudflare Tunnel Setup](#cloudflare-tunnel-setup)
+- [⚙️ Configuration](#configuration)
+- [📂 Project Structure](#project-structure)
+- [🔒 Security Notes](#security-notes)
+- [🔧 Troubleshooting](#troubleshooting)
+- [📄 License](#license)
+- [🤝 Contributing](#contributing)
+
+</details>
+
+## ✨ Features
 
 - **OpenAI API Compatibility**: Accept requests in OpenAI format and forward them to Ollama
 - **Authentication**: API key-based authentication for secure access
@@ -12,15 +34,18 @@ A simple proxy server for Ollama API requests with authentication, designed to p
 - **GPU Acceleration**: NVIDIA GPU support for Ollama container
 - **Flexible Configuration**: Environment-based configuration
 
-## Quick Start
+## 🚀 Quick Start
 
-### Prerequisites
+<details>
+<summary>📋 Prerequisites</summary>
 
 - Docker and Docker Compose
 - NVIDIA Docker runtime (for GPU support)
 - Node.js 18+ (for local development)
 
-### Docker Deployment (Recommended)
+</details>
+
+### 🐳 Docker Deployment (Recommended)
 
 1. **Clone the repository:**
    ```bash
@@ -47,7 +72,8 @@ A simple proxy server for Ollama API requests with authentication, designed to p
    ollama pull codellama
    ```
 
-### Local Development
+<details>
+<summary>💻 Local Development</summary>
 
 1. **Install dependencies:**
    ```bash
@@ -69,10 +95,49 @@ A simple proxy server for Ollama API requests with authentication, designed to p
    npm run build && npm start  # Production mode
    ```
 
-## Usage
+</details>
 
-The proxy accepts OpenAI-compatible requests. **All models use the same endpoint** - specify which model to use via the `model` parameter:
+## 🔌 API Usage
 
+The proxy supports both native Ollama API and OpenAI-compatible endpoints. Choose the API that best fits your use case:
+
+### Native Ollama API
+
+Use these endpoints for direct Ollama compatibility or tools that support Ollama natively:
+
+**Available Endpoints:**
+- `POST /api/chat` - Chat with streaming support
+- `POST /api/generate` - Text generation  
+- `GET /api/tags` - List installed models
+
+**Example - Chat:**
+```bash
+curl -X POST http://localhost:3000/api/chat \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer your_api_key_here" \\
+  -d '{
+    "model": "llama3",
+    "messages": [
+      {"role": "user", "content": "Hello, how are you?"}
+    ]
+  }'
+```
+
+**Example - List Models:**
+```bash
+curl -X GET http://localhost:3000/api/tags \\
+  -H "Authorization: Bearer your_api_key_here"
+```
+
+### OpenAI-Compatible API
+
+Use these endpoints for OpenAI tools (LobeChat, ChatGPT-Web, OpenAI Python library, etc.):
+
+**Available Endpoints:**
+- `POST /v1/chat/completions` - Chat completions (OpenAI format)
+- `GET /v1/models` - List models (OpenAI format)
+
+**Example - Chat:**
 ```bash
 curl -X POST http://localhost:3000/v1/chat/completions \\
   -H "Content-Type: application/json" \\
@@ -85,48 +150,24 @@ curl -X POST http://localhost:3000/v1/chat/completions \\
   }'
 ```
 
-### Available Endpoints
+**Tool Configuration:**
+Most OpenAI tools require the base URL to end with `/v1`:
 
-- `POST /v1/chat/completions` - Chat completions (OpenAI compatible)
-- `GET /v1/models` - List available models
-- `GET /health` - Health check
-
-## OpenAI Tool Integration
-
-Most OpenAI-compatible tools automatically append `/chat/completions` to your base URL. Therefore, you **must** configure your base URL to end with `/v1`:
-
-### Correct Base URL Configuration:
 ```
-✅ http://your-domain.com/v1
-✅ https://ollama.example.com/v1
+✅ Correct: http://your-domain.com/v1
+❌ Wrong: http://your-domain.com
 ```
 
-### Common Tools Configuration:
+**Popular Tools:**
+- **LobeChat:** Base URL: `http://your-domain.com/v1`
+- **OpenAI Python:** `base_url="http://your-domain.com/v1"`
+- **ChatGPT-Web:** API Endpoint: `http://your-domain.com/v1`
 
-**LobeChat:**
-- Base URL: `http://your-domain.com/v1`
-- API Key: `your_api_key_here`
+### General Endpoints
 
-**ChatGPT-Web / Similar Tools:**
-- API Endpoint: `http://your-domain.com/v1`
-- Authorization: `Bearer your_api_key_here`
+- `GET /health` - Health check (no authentication required)
 
-**OpenAI Python Library:**
-```python
-from openai import OpenAI
-
-client = OpenAI(
-    base_url="http://your-domain.com/v1",
-    api_key="your_api_key_here"
-)
-```
-
-### Why `/v1` is Required:
-- Tools automatically append endpoints like `/chat/completions`
-- Without `/v1`: Request goes to `/chat/completions` (doesn't exist)
-- With `/v1`: Request goes to `/v1/chat/completions` ✅
-
-## Cloudflare Tunnel Setup
+## ☁️ Cloudflare Tunnel Setup
 
 For secure external access:
 
@@ -147,9 +188,10 @@ For secure external access:
 
 4. **The tunnel will automatically start with Docker Compose**
 
-## Configuration
+## ⚙️ Configuration
 
-### Environment Variables
+<details>
+<summary>🔧 Environment Variables</summary>
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -157,14 +199,20 @@ For secure external access:
 | `OLLAMA_URL` | `http://ollama:11434` (Docker)<br>`http://localhost:11434` (local) | Ollama server URL |
 | `PORT` | `3000` | Proxy server port (local dev only) |
 
-### Docker Configuration
+</details>
+
+<details>
+<summary>🐳 Docker Configuration</summary>
 
 The Docker setup includes:
 - **Ollama container**: Runs Ollama with GPU support
 - **Proxy container**: Runs the API proxy
 - **Cloudflared container**: Provides tunnel access (optional)
 
-### GPU Configuration
+</details>
+
+<details>
+<summary>🎮 GPU Configuration</summary>
 
 The setup supports NVIDIA GPUs with:
 - 36GB memory limit
@@ -172,7 +220,10 @@ The setup supports NVIDIA GPUs with:
 - Single GPU allocation
 - Unlimited locked memory
 
-## NPM Scripts
+</details>
+
+<details>
+<summary>📜 NPM Scripts</summary>
 
 | Script | Description |
 |--------|-------------|
@@ -184,7 +235,9 @@ The setup supports NVIDIA GPUs with:
 | `npm run build` | Build for production |
 | `npm start` | Start production server |
 
-## Project Structure
+</details>
+
+## 📂 Project Structure
 
 ```
 ollama-proxy/
@@ -201,80 +254,78 @@ ollama-proxy/
 └── docs/                        # Documentation
 ```
 
-## Security Notes
+## 🔒 Security Notes
 
 - Keep your API key secure and never commit it to version control
 - Cloudflare tunnel credentials are sensitive and excluded from git
 - The proxy only accepts requests with valid API keys
 - Internal communication uses Docker networks for security
 
-## Troubleshooting
+## 🔧 Troubleshooting
 
-### OpenAI Tool Connection Issues
+### API Connection Issues
 
-**Problem:** Getting 404 errors or "Cannot POST /chat/completions" when testing OpenAI tools.
+**OpenAI Tools (404 errors):**
+- **Problem:** "Cannot POST /chat/completions" or 404 errors
+- **Solution:** Use `/v1` in base URL: `http://your-domain.com/v1`
+- **Why:** OpenAI tools append `/chat/completions` automatically
 
-**Symptoms:**
-- Error: `404 Not Found` when testing connection
-- Error: `Cannot POST /chat/completions`
-- Tools report "OpenAI service error"
+**Native Ollama Tools:**
+- **Problem:** Connection refused or 404 on `/api/*` endpoints
+- **Solution:** Use base URL without `/v1`: `http://your-domain.com`
+- **Endpoints:** `/api/chat`, `/api/tags`, `/api/generate`
 
-**Solution:**
-Make sure your base URL ends with `/v1`:
-```
-❌ Wrong: http://your-domain.com
-✅ Correct: http://your-domain.com/v1
-```
+### Model Issues
 
-**Why this happens:**
-- OpenAI tools automatically append `/chat/completions` to your base URL
-- Without `/v1`, the request goes to `/chat/completions` (which doesn't exist)
-- With `/v1`, the request correctly goes to `/v1/chat/completions`
+**Model Not Found:**
+- **Symptoms:** Chat fails but models list works
+- **Check available models:**
+  - OpenAI format: `GET /v1/models`
+  - Ollama format: `GET /api/tags`
+- **Solution:** Download missing models in Ollama container
 
-### Model Not Found Errors
-
-**Problem:** "Ollama error: Not Found" when trying to use specific models.
-
-**Symptoms:**
-- Models list loads successfully
-- Chat requests fail with 404
-- Error mentions model name like `gpt-4` or `gpt-3.5-turbo`
-
-**Solution:**
-1. Use only models that exist in your Ollama instance
-2. Check available models: `GET /v1/models`
-3. Download missing models in Ollama container
-
-### Port Conflicts
-If you encounter port conflicts, the setup uses internal Docker networking without host port mapping for security.
-
-### GPU Access
-Ensure NVIDIA Docker runtime is installed:
-```bash
-# Install nvidia-docker2
-sudo apt-get install nvidia-docker2
-sudo systemctl restart docker
-```
-
-### Model Downloads
-Access the Ollama container to manage models:
+**Download Models:**
 ```bash
 docker exec -it ollama-proxy-ollama-1 /bin/bash
 ollama list                    # List installed models
-ollama pull <model-name>       # Download models
+ollama pull llama3            # Download new models
+ollama pull qwen2.5:7b        # Download specific version
 ```
 
-### Request Too Large Errors
-If you get "PayloadTooLargeError" with large conversations:
-- The proxy accepts up to 10MB request bodies
-- This should handle most conversation contexts
-- Consider reducing conversation history if needed
+### Authentication Issues
 
-## License
+**401 Unauthorized:**
+- Check `API_KEY` in `.env` file
+- Ensure `Authorization: Bearer your_api_key` header is correct
+- Health endpoint (`/health`) doesn't require authentication
+
+### Performance Issues
+
+**Request Too Large:**
+- Proxy accepts up to 10MB request bodies
+- Consider reducing conversation history for long chats
+
+**GPU Not Used:**
+- Check NVIDIA Docker runtime: `sudo apt install nvidia-docker2`
+- Verify GPU allocation in `docker-compose.yml`
+- Check Ollama logs: `npm run logs:ollama`
+
+### Docker Issues
+
+**Port Conflicts:**
+- Setup uses internal Docker networking (no host ports exposed)
+- Access via Cloudflare tunnel or modify `docker-compose.yml`
+
+**Container Won't Start:**
+- Check Docker Compose logs: `docker-compose logs`
+- Verify `.env` file exists and contains `API_KEY`
+- Ensure NVIDIA runtime available for GPU support
+
+## 📄 License
 
 MIT License - see LICENSE file for details.
 
-## Contributing
+## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch
