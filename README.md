@@ -91,6 +91,41 @@ curl -X POST http://localhost:3000/v1/chat/completions \\
 - `GET /v1/models` - List available models
 - `GET /health` - Health check
 
+## OpenAI Tool Integration
+
+Most OpenAI-compatible tools automatically append `/chat/completions` to your base URL. Therefore, you **must** configure your base URL to end with `/v1`:
+
+### Correct Base URL Configuration:
+```
+✅ http://your-domain.com/v1
+✅ https://ollama.example.com/v1
+```
+
+### Common Tools Configuration:
+
+**LobeChat:**
+- Base URL: `http://your-domain.com/v1`
+- API Key: `your_api_key_here`
+
+**ChatGPT-Web / Similar Tools:**
+- API Endpoint: `http://your-domain.com/v1`
+- Authorization: `Bearer your_api_key_here`
+
+**OpenAI Python Library:**
+```python
+from openai import OpenAI
+
+client = OpenAI(
+    base_url="http://your-domain.com/v1",
+    api_key="your_api_key_here"
+)
+```
+
+### Why `/v1` is Required:
+- Tools automatically append endpoints like `/chat/completions`
+- Without `/v1`: Request goes to `/chat/completions` (doesn't exist)
+- With `/v1`: Request goes to `/v1/chat/completions` ✅
+
 ## Cloudflare Tunnel Setup
 
 For secure external access:
@@ -175,6 +210,41 @@ ollama-proxy/
 
 ## Troubleshooting
 
+### OpenAI Tool Connection Issues
+
+**Problem:** Getting 404 errors or "Cannot POST /chat/completions" when testing OpenAI tools.
+
+**Symptoms:**
+- Error: `404 Not Found` when testing connection
+- Error: `Cannot POST /chat/completions`
+- Tools report "OpenAI service error"
+
+**Solution:**
+Make sure your base URL ends with `/v1`:
+```
+❌ Wrong: http://your-domain.com
+✅ Correct: http://your-domain.com/v1
+```
+
+**Why this happens:**
+- OpenAI tools automatically append `/chat/completions` to your base URL
+- Without `/v1`, the request goes to `/chat/completions` (which doesn't exist)
+- With `/v1`, the request correctly goes to `/v1/chat/completions`
+
+### Model Not Found Errors
+
+**Problem:** "Ollama error: Not Found" when trying to use specific models.
+
+**Symptoms:**
+- Models list loads successfully
+- Chat requests fail with 404
+- Error mentions model name like `gpt-4` or `gpt-3.5-turbo`
+
+**Solution:**
+1. Use only models that exist in your Ollama instance
+2. Check available models: `GET /v1/models`
+3. Download missing models in Ollama container
+
 ### Port Conflicts
 If you encounter port conflicts, the setup uses internal Docker networking without host port mapping for security.
 
@@ -193,6 +263,12 @@ docker exec -it ollama-proxy-ollama-1 /bin/bash
 ollama list                    # List installed models
 ollama pull <model-name>       # Download models
 ```
+
+### Request Too Large Errors
+If you get "PayloadTooLargeError" with large conversations:
+- The proxy accepts up to 10MB request bodies
+- This should handle most conversation contexts
+- Consider reducing conversation history if needed
 
 ## License
 
