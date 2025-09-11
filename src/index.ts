@@ -18,7 +18,6 @@ import { OllamaChatResponse, OllamaChatStreamChunk, OllamaModelsResponse } from 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load environment variables from .env file
 dotenv.config();
 
 const app = express();
@@ -26,10 +25,7 @@ const port = process.env.PORT || 3000;
 const apiKey = process.env.API_KEY;
 const ollamaUrl = process.env.OLLAMA_URL || 'http://localhost:11434';
 
-// Middleware for JSON parsing
-app.use(express.json());
-
-// Authentication middleware
+// Auth middleware
 const authenticate = (req: Request, res: Response, next: NextFunction) => {
   const auth = req.headers['authorization'];
   if (!apiKey || auth !== `Bearer ${apiKey}`) {
@@ -38,52 +34,69 @@ const authenticate = (req: Request, res: Response, next: NextFunction) => {
   next();
 };
 
-// Forward all API requests to Ollama (GET and POST)
+// ---- Proxy forwarder: forward raw stream for /api/* (no body-parser here) ----
 const forwardToOllama = async (req: Request, res: Response) => {
   try {
     const endpoint = req.path.replace('/api', '');
     const targetUrl = `${ollamaUrl}/api${endpoint}`;
-    
-    console.log(`Forwarding request to: ${targetUrl}`);
-    
-    // Copy original headers (except Host and Authorization)
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+
+    console.log(`Forwarding request to: ${targetUrl} (method=${req.method})`);
+
+    // Copy headers except host/authorization (we keep client's headers like content-type)
+    const headers: Record<string, string> = {};
     Object.keys(req.headers).forEach(key => {
       if (key.toLowerCase() !== 'host' && key.toLowerCase() !== 'authorization') {
         const value = req.headers[key];
-        if (typeof value === 'string') {
-          headers[key] = value;
-        }
+        if (typeof value === 'string') headers[key] = value;
       }
     });
+    if (!headers['content-type']) headers['content-type'] = 'application/json';
 
-    // Forward request unchanged to Ollama
+    // For GET no body, otherwise forward the raw incoming request stream
+    const body = req.method === 'GET' ? undefined : (req as any);
+
     const response = await fetch(targetUrl, {
       method: req.method,
       headers,
-      body: req.method === 'GET' ? undefined : JSON.stringify(req.body),
+      body,
+      // optional: keepalive/timeouts could be added here if desired
     });
 
-    // Copy all headers from the Ollama response
+    // set status and copy headers
+    res.status(response.status);
     response.headers.forEach((value, key) => {
-      res.setHeader(key, value);
+      // avoid overriding express-controlled headers
+      try { res.setHeader(key, value); } catch (e) { /* ignore */ }
     });
 
-    // Return response unchanged
-    const data = await response.text();
-    res.status(response.status).send(data);
-  } catch (error: unknown) {
-    const proxyError = error instanceof Error ? error : new Error(String(error));
-    console.error('Proxy error:', proxyError);
-    res.status(500).json({ error: 'Internal server error', details: proxyError.message });
+    // If there's a body stream, pipe it directly to the express response
+    if (response.body) {
+      // node-fetch response.body is a Node.js readable stream — pipe to express res
+      (response.body as any).pipe(res);
+      (response.body as any).on('error', (err: Error) => {
+        console.error('Error piping response body:', err);
+        try { res.end(); } catch (_) {}
+      });
+    } else {
+      const text = await response.text();
+      res.send(text);
+    }
+  } catch (err: unknown) {
+    const e = err instanceof Error ? err : new Error(String(err));
+    console.error('Proxy error:', e);
+    if (!res.headersSent) res.status(500).json({ error: 'Internal server error', details: e.message });
+    else res.end();
   }
 };
 
-// Register routes for both GET and POST /api/*
+// Register proxy routes (no JSON parser before these)
 app.get('/api/*', authenticate, forwardToOllama);
 app.post('/api/*', authenticate, forwardToOllama);
 
-// OpenAI-compatible chat completions endpoint
+// ---- Only parse JSON for /v1 endpoints that actually need it ----
+app.use('/v1', express.json({ limit: '50mb' }));
+
+// OpenAI-compatible chat completions endpoint (uses parsed JSON)
 app.post('/v1/chat/completions', authenticate, async (req: Request, res: Response) => {
   try {
     const openaiRequest: OpenAIChatRequest = req.body;
@@ -110,6 +123,7 @@ app.post('/v1/chat/completions', authenticate, async (req: Request, res: Respons
     }
 
     if (openaiRequest.stream) {
+      // stream via SSE-like event stream (transform chunks)
       res.writeHead(200, {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
@@ -121,6 +135,7 @@ app.post('/v1/chat/completions', authenticate, async (req: Request, res: Respons
       let buffer = '';
 
       if (response.body) {
+        // response.body is a Node stream -> use 'data' events
         response.body.on('data', (chunk: Buffer) => {
           buffer += chunk.toString();
           const lines = buffer.split('\n');
@@ -156,13 +171,17 @@ app.post('/v1/chat/completions', authenticate, async (req: Request, res: Respons
           if (!res.headersSent) {
             res.write('data: [DONE]\n\n');
           }
-          res.end();
+          try { res.end(); } catch (_) {}
         });
 
         response.body.on('error', (error: Error) => {
           console.error('Stream error:', error);
-          res.end();
+          try { res.end(); } catch (_) {}
         });
+      } else {
+        // fallback
+        res.write('data: [DONE]\n\n');
+        res.end();
       }
     } else {
       const ollamaResponse: OllamaChatResponse = await response.json() as OllamaChatResponse;
@@ -182,7 +201,7 @@ app.post('/v1/chat/completions', authenticate, async (req: Request, res: Respons
   }
 });
 
-// OpenAI-compatible models endpoint
+// Models endpoint (parsing not required)
 app.get('/v1/models', authenticate, async (req: Request, res: Response) => {
   try {
     console.log('OpenAI Models request');
@@ -219,12 +238,11 @@ app.get('/v1/models', authenticate, async (req: Request, res: Response) => {
   }
 });
 
-// Health check endpoint with authentication
+// Health
 app.get('/health', authenticate, (req: Request, res: Response) => {
   res.status(200).json({ status: 'ok' });
 });
 
-// Start server
 app.listen(port, () => {
   console.log(`Proxy listening on port ${port}`);
   console.log(`Forwarding requests to Ollama at: ${ollamaUrl}`);
