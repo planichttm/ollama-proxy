@@ -310,6 +310,83 @@ ollama pull qwen2.5:7b        # Download specific version
 - Verify GPU allocation in `docker-compose.yml`
 - Check Ollama logs: `npm run logs:ollama`
 
+### GPU Initialization Issues
+
+**Problem:** GPU detected by system but not by Ollama container
+- **Symptoms:**
+  - `ggml_cuda_init: failed to initialize CUDA: no CUDA-capable device is detected`
+  - `cuda driver library failed to get device context 800/801`
+  - `Failed to initialize NVML: Unknown Error`
+  - `nvidia-smi` works on host but fails in container
+
+**Solution:** Configure nvidia-container-runtime cgroups support
+```bash
+# Enable cgroups in nvidia-container-runtime
+sudo sed -i 's/#no-cgroups = false/no-cgroups = false/' /etc/nvidia-container-runtime/config.toml
+
+# Restart Docker to apply changes
+sudo systemctl restart docker
+
+# Recreate containers
+docker-compose down && docker-compose up -d
+```
+
+**Modern GPU Configuration:** Use current Docker Compose syntax
+```yaml
+# ✅ Recommended (current)
+deploy:
+  resources:
+    reservations:
+      devices:
+        - driver: nvidia
+          count: all
+          capabilities: [gpu]
+
+# ❌ Deprecated (avoid)
+runtime: nvidia
+```
+
+**NVIDIA Driver Compatibility:**
+- **Known issues:** Driver series 555.x had Ollama compatibility problems
+- **Recommended:** Use stable drivers (545.x, 552.x series)
+- **RTX 5090:** Driver 575.64+ generally works but may show performance warnings
+
+### GPU Watchdog for Production Stability
+
+**Problem:** Ollama occasionally falls back to CPU after model switching due to VRAM not being released properly. This is a [known issue](https://github.com/ollama/ollama/issues/9016) affecting production deployments.
+
+**Solution:** The setup includes an automatic GPU watchdog container that monitors and restarts Ollama when GPU issues occur:
+
+```bash
+# Watchdog starts automatically with the full stack
+docker-compose up -d
+
+# View watchdog logs
+docker logs ollama-proxy-watchdog-1 -f
+
+# Or view persistent logs
+tail -f logs/watchdog/ollama-watchdog.log
+```
+
+**What the watchdog monitors:**
+- `insufficient VRAM to load any model layers`
+- `offloaded 0/X layers to GPU` (indicates CPU fallback)
+- `gpu VRAM usage didn't recover within timeout`
+- `runner.vram="0 B"` (GPU not allocated)
+
+**Features:**
+- **Fully automated** - no manual intervention required
+- **Container-based** - runs as part of your Docker stack
+- **JSON structured logs** for easy monitoring
+- **Health checks** and restart policies
+- **Configurable** via environment variables:
+  - `CHECK_INTERVAL=5` (seconds between checks)
+  - `RESTART_COOLDOWN=60` (minimum seconds between restarts)
+  - `LOG_LEVEL=INFO` (DEBUG, INFO, WARNING, ERROR)
+
+**Architecture:**
+The watchdog runs as a separate container with access to Docker socket, allowing it to monitor and restart the Ollama container when GPU fallback is detected. This ensures your setup remains production-ready without manual intervention.
+
 ### Docker Issues
 
 **Port Conflicts:**
