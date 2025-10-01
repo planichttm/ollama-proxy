@@ -306,9 +306,13 @@ ollama pull qwen2.5:7b        # Download specific version
 - Consider reducing conversation history for long chats
 
 **GPU Not Used:**
-- Check NVIDIA Docker runtime: `sudo apt install nvidia-docker2`
-- Verify GPU allocation in `docker-compose.yml`
-- Check Ollama logs: `npm run logs:ollama`
+- **Verify GPU configuration** in `docker-compose.yml`:
+  - Must have both `runtime: nvidia` AND `deploy.resources.reservations.devices`
+  - See [GPU Configuration Best Practices](#gpu-initialization-issues) below
+- **Check NVIDIA Docker runtime:** `sudo apt install nvidia-docker2`
+- **Test GPU access in container:** `docker exec ollama-proxy-ollama-1 nvidia-smi`
+- **Check Ollama logs:** `npm run logs:ollama`
+- **Look for:** "insufficient VRAM" or "offloaded 0/X layers" indicates GPU fallback
 
 ### GPU Initialization Issues
 
@@ -331,20 +335,32 @@ sudo systemctl restart docker
 docker-compose down && docker-compose up -d
 ```
 
-**Modern GPU Configuration:** Use current Docker Compose syntax
+**GPU Configuration Best Practices:** Use both mechanisms for maximum compatibility
 ```yaml
-# ✅ Recommended (current)
+# ✅ Recommended: Use BOTH for reliable GPU access
+ollama:
+  runtime: nvidia  # Direct GPU access (required!)
+  deploy:
+    resources:
+      reservations:
+        devices:
+          - driver: nvidia
+            count: all
+            capabilities: [gpu]
+
+# ❌ Common mistake: Using only deploy without runtime
+# This configuration may fail to initialize GPU in container
 deploy:
   resources:
     reservations:
-      devices:
-        - driver: nvidia
-          count: all
-          capabilities: [gpu]
-
-# ❌ Deprecated (avoid)
-runtime: nvidia
+      devices: [...]
+# Missing: runtime: nvidia
 ```
+
+**Why both mechanisms?**
+- `runtime: nvidia` ensures GPU driver access in container (nvidia-smi works)
+- `deploy.resources` provides resource limits and allocation
+- Using only `deploy` without `runtime` can lead to NVML initialization failures
 
 **NVIDIA Driver Compatibility:**
 - **Known issues:** Driver series 555.x had Ollama compatibility problems
@@ -377,15 +393,22 @@ tail -f logs/watchdog/ollama-watchdog.log
 **Features:**
 - **Fully automated** - no manual intervention required
 - **Container-based** - runs as part of your Docker stack
+- **Silent monitoring** - only logs when problems detected
 - **JSON structured logs** for easy monitoring
 - **Health checks** and restart policies
+- **Runs as root** - required for Docker socket access
 - **Configurable** via environment variables:
   - `CHECK_INTERVAL=5` (seconds between checks)
   - `RESTART_COOLDOWN=60` (minimum seconds between restarts)
   - `LOG_LEVEL=INFO` (DEBUG, INFO, WARNING, ERROR)
 
+**Logging Behavior:**
+- **INFO mode (default):** Silent during normal operation, logs only when problems detected
+- **DEBUG mode:** Verbose logging including all monitored log lines (for troubleshooting only)
+- Logs are written to both stdout (Docker logs) and `/var/log/watchdog/ollama-watchdog.log`
+
 **Architecture:**
-The watchdog runs as a separate container with access to Docker socket, allowing it to monitor and restart the Ollama container when GPU fallback is detected. This ensures your setup remains production-ready without manual intervention.
+The watchdog runs as a separate container with access to Docker socket, allowing it to monitor and restart the Ollama container when GPU fallback is detected. It runs as root to access the Docker daemon. This ensures your setup remains production-ready without manual intervention.
 
 ### Docker Issues
 
