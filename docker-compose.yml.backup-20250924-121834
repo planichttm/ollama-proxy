@@ -25,19 +25,11 @@ services:
       - OLLAMA_MAX_LOADED_MODELS=1  # Only one model in VRAM at a time
       - OLLAMA_MAX_QUEUE=20  # Allow up to 20 queued requests
       - OLLAMA_NEW_ESTIMATES=1  # Enable improved memory management
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
-          memory: 16G
-        limits:
-          memory: 36G
     shm_size: 4gb  # Increase from default 64MB to 1GB
     oom_kill_disable: true
     command: serve
+    mem_limit: 36G
+    mem_reservation: 16G
     ulimits:
       memlock: -1  # Unlimited locked memory    
 
@@ -63,29 +55,6 @@ services:
     command: tunnel --no-autoupdate run
     depends_on:
       - proxy
-
-  # GPU Watchdog Service
-  watchdog:
-    build: ./watchdog
-    restart: unless-stopped
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./logs/watchdog:/var/log/watchdog
-    environment:
-      - MONITORED_CONTAINER=ollama-proxy-ollama-1
-      - CHECK_INTERVAL=5
-      - RESTART_COOLDOWN=60
-      - LOG_LEVEL=INFO
-    depends_on:
-      - ollama
-    networks:
-      - ollama_network
-    healthcheck:
-      test: ["CMD", "/usr/local/bin/watchdog.sh", "healthcheck"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
 
 volumes:
   ollama_data:

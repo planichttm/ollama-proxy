@@ -49,7 +49,7 @@ A simple proxy server for Ollama API requests with authentication, designed to p
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/planichttm/ollama-proxy.git
+   git clone https://github.com/loonylabs-dev/ollama-proxy.git
    cd ollama-proxy
    ```
 

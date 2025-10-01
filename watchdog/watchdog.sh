@@ -47,6 +47,11 @@ log_json() {
     local message=$2
     local timestamp=$(date -u +"%Y-%m-%dT%H:%M:%S.%3NZ")
 
+    # Only log if level is appropriate
+    if [[ "$level" == "DEBUG" && "$LOG_LEVEL" != "DEBUG" ]]; then
+        return
+    fi
+
     # JSON structured log
     echo "{\"timestamp\":\"$timestamp\",\"level\":\"$level\",\"service\":\"ollama-watchdog\",\"container\":\"$MONITORED_CONTAINER\",\"message\":\"$message\",\"restart_count\":$RESTART_COUNT}" | tee -a "$LOG_FILE"
 }
@@ -160,11 +165,10 @@ monitor_logs() {
 
         # Get recent logs and check for patterns
         docker logs --tail 50 "$MONITORED_CONTAINER" 2>&1 | while read -r line; do
-            log_message DEBUG "Log line: $line"
-
             for pattern in "${PROBLEM_PATTERNS[@]}"; do
                 if echo "$line" | grep -E "$pattern" > /dev/null 2>&1; then
-                    log_message DEBUG "Pattern matched: $pattern"
+                    log_message WARNING "GPU fallback pattern detected in logs: $pattern"
+                    log_message DEBUG "Matching log line: $line"
                     restart_container "$pattern"
                     break
                 fi

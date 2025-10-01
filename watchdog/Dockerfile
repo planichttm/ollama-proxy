@@ -9,13 +9,8 @@ RUN apk add --no-cache \
     grep \
     && rm -rf /var/cache/apk/*
 
-# Create watchdog user for better security
-RUN addgroup -g 1001 watchdog && \
-    adduser -D -u 1001 -G watchdog watchdog
-
 # Create log directory
-RUN mkdir -p /var/log/watchdog && \
-    chown -R watchdog:watchdog /var/log/watchdog
+RUN mkdir -p /var/log/watchdog
 
 # Copy watchdog script
 COPY watchdog.sh /usr/local/bin/watchdog.sh
@@ -26,9 +21,6 @@ ENV MONITORED_CONTAINER="ollama-proxy-ollama-1" \
     CHECK_INTERVAL="5" \
     RESTART_COOLDOWN="60" \
     LOG_LEVEL="INFO"
-
-# Switch to non-root user
-USER watchdog
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
